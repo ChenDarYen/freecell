@@ -26,7 +26,8 @@
       </div>
 
       <div class="winning"
-      v-show="isWin">
+      v-show="isWin"
+      :class="{ visable: isWin }">
         <p>Congratulations</p>
 
         <div class="btn-container">
@@ -203,7 +204,7 @@ export default class Home extends Vue {
   private waitingTime: number = .5;
   private canAction: boolean = false;
   private showModal: boolean = false;
-  private isWin: boolean = true;
+  private isWin: boolean = false;
   private action: string = '';
   private messages: string[] = [];
   private btnMsg: string = '';
@@ -543,26 +544,29 @@ export default class Home extends Vue {
   public checkStatus () {
     let isWin: boolean = true;
 
-    for (let i = 0; i < 4; i ++) {
+    for (let i = 0; i < 4; i ++) { // 檢查四張 k 是否都在 foundation 裡
       const cardIndex: number = 51 - i;
       const cardCellIdx: number = parseInt(this.deck[cardIndex].cell, 10);
 
       if (cardCellIdx < 5 || cardCellIdx > 8) {
         isWin = false;
+        break;
       }
     }
 
     if (isWin) {
       this.isWin = true;
 
-      const winning = document.querySelector('.winning') as HTMLElement;
-      const winningW: number = winning.offsetWidth;
-      const boardW: number = document.querySelector('.board')!.clientWidth;
-      const foundationY: number = (document.querySelector('.foundation') as HTMLElement).offsetTop;
-      const cardH: number = (document.querySelector('.card') as HTMLElement).offsetHeight;
+      this.$nextTick(() => { // 確保 winning 的長寬已被設置
+        const winning = document.querySelector('.winning') as HTMLElement;
+        const winningW: number = winning.offsetWidth;
+        const boardW: number = document.querySelector('.board')!.clientWidth;
+        const foundationY: number = (document.querySelector('.foundation') as HTMLElement).offsetTop;
+        const cardH: number = (document.querySelector('.card img') as HTMLElement).offsetHeight;
 
-      winning.style.left = `${(boardW - winningW) / 2}px`;
-      winning.style.top = `${foundationY + cardH + 60}px`;
+        winning.style.left = `${(boardW - winningW) / 2}px`;
+        winning.style.top = `${foundationY + cardH + 60}px`;
+      });
     }
   }
   public newGame (immediate: boolean = false) {
@@ -742,5 +746,8 @@ export default class Home extends Vue {
   .btn-container {
     margin-top: 60px;
   }
+}
+.visable {
+  opacity: 1;
 }
 </style>

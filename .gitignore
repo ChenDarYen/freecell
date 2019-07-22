@@ -2,6 +2,7 @@
 node_modules
 /dist
 gulpfile.js
+.publish
 
 # local env files
 .env.local

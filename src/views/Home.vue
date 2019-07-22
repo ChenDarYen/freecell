@@ -41,16 +41,14 @@
         </div>
       </div>
 
-      <div class="card"
-      v-for="(card, index) in deck" :key="card + index"
-      :class="`border-${card.color}`"
+      <card-t class="card" opacity="1" borderradius="3%"
+      v-for="(card, index) in deck" :key="card.point + card.suit"
+      :rank="card.point" :suit="card.suit"
       data-legal data-tableau
       :data-index="index" :data-sibling="JSON.stringify(card.siblings)" :data-cell="card.cell"
       @mousedown="changeZIndex" @mouseup="mouseup"
-      v-drag>
-        {{ card.point }}
-        {{ card.suit }}
-      </div>
+      v-drag
+      ></card-t>
 
       <div class="logo">
         <img src="../assets/images/logo.svg">
@@ -84,7 +82,7 @@ class Card {
     this.src = `../assets/images/${point}-${suit}.png`;
 
     const siblingsMulti: number = Math.floor(this.index / 4) + 1;
-    if (suit === 'spade' || suit === 'club') {
+    if (suit === 'spades' || suit === 'clubs') {
       this.color = 'black';
       if (this.point < 13) {
         this.siblings = [siblingsMulti * 4 + 1, siblingsMulti * 4 + 2];
@@ -117,7 +115,10 @@ interface ChapterConfig {
     drag: {
       bind: (element, { value }) => {
         const card: HTMLElement = element;
-        card.onmousedown = (el) => {
+
+        card.onmousedown = (e) => {
+          e.preventDefault(); // 避免觸發圖片拖曳效果
+
           const board = document.querySelector('.board') as HTMLElement;
           const canAction: boolean = board.getAttribute('data-action') === 'true';
 
@@ -125,7 +126,7 @@ interface ChapterConfig {
             const cardIdx = card.getAttribute('data-index');
             const legal: boolean = card.getAttribute('data-legal') === 'true';
             if (legal) {
-              el.stopPropagation();
+              e.stopPropagation();
 
               const cardW: number = card.offsetWidth;
               const cardH: number = card.offsetHeight;
@@ -137,34 +138,36 @@ interface ChapterConfig {
 
               for (const index of tableau) {
                 const tableauCard: HTMLElement = cards[index];
-                const diffX: number = el.clientX - tableauCard.offsetLeft;
-                const diffY: number = el.clientY - tableauCard.offsetTop;
+                const diffX: number = e.clientX - tableauCard.offsetLeft;
+                const diffY: number = e.clientY - tableauCard.offsetTop;
                 diff.push({
                   x: diffX,
                   y: diffY,
                 });
               }
 
-              document.onmousemove = (e) => {
+              document.onmousemove = (event) => {
                 let inRange: boolean = true;
 
                 for (const [index] of tableau.entries()) {
                   const { x: diffX }: { x: number } = diff[index];
                   const { y: diffY }: { y: number } = diff[index];
-                  if (e.clientX - diffX < 0 || e.clientX - diffX + cardW - boardW > 0
-                  || e.clientY - diffY < 0 || e.clientY - diffY + cardH - boardH > 0) {
+                  if (event.clientX - diffX < 0 || event.clientX - diffX + cardW - boardW > 0
+                  || event.clientY - diffY < 0 || event.clientY - diffY + cardH - boardH > 0) {
                     inRange = !inRange;
                     break;
                   }  
                 }
                 
                 if (inRange) {
+                  const mouseX: number = event.clientX;
+                  const mouseY: number = event.clientY;
                   for (const [index, CardIndex] of tableau.entries()) {
                     const tableauCard: HTMLElement = cards[CardIndex];
                     const { x: diffX }: { x: number } = diff[index];
                     const { y: diffY }: { y: number } = diff[index];
-                    tableauCard.style.left = `${e.clientX - diffX}px`;
-                    tableauCard.style.top = `${e.clientY - diffY}px`;  
+                    tableauCard.style.left = `${mouseX - diffX}px`;
+                    tableauCard.style.top = `${mouseY - diffY}px`;  
                   }
                 }
               };
@@ -187,7 +190,7 @@ interface ChapterConfig {
 export default class Home extends Vue {
   // data
   private readonly points: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
-  private readonly suits: string[] = ['spade', 'heart', 'diamond', 'club'];
+  private readonly suits: string[] = ['spades', 'hearts', 'diamonds', 'clubs'];
   private deck: Card[] = [];
   private history: ChapterConfig[] = [];
   private cellsTrack: TrackConfig = {};
@@ -230,7 +233,6 @@ export default class Home extends Vue {
       card.style.top = `${cardY}px`;
       card.style.left = `${cardX}px`;
       card.style.width = `${cardW}px`;
-      card.style.height = `${cardH}px`;
     }
 
     if (this.history.length > 0) {
@@ -345,7 +347,7 @@ export default class Home extends Vue {
         realCard.style.top = `${cellPosY + multiple * cellHeight * this.cardDistRatio}px`;
         realCard.style.zIndex = `${multiple}`;
         setTimeout(() => {
-          realCard.style.transition = '';;;
+          realCard.style.transition = '';
         }, time * 1000);
       };
 
@@ -717,6 +719,11 @@ export default class Home extends Vue {
     transform: translate(-50%, -50%);
   }
 }
+.card {
+  width: 0;
+  height: 0;
+  position: absolute;
+}
 .modal {
   position: absolute;
   top: 0;
@@ -735,20 +742,5 @@ export default class Home extends Vue {
   .btn-container {
     margin-top: 60px;
   }
-}
-
-.card {
-  width: 0;
-  height: 0;
-  border-radius: $cardBorderRadius;
-  word-wrap: break-word;
-  background-color: #ddd;
-  position: absolute;
-}
-.border-black {
-  border: 1px solid black;
-}
-.border-red {
-  border: 1px solid red;
 }
 </style>

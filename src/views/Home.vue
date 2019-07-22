@@ -224,17 +224,20 @@ export default class Home extends Vue {
   }
   public mounted () {
     // show cards
-    const firstCell = document.querySelector('.cell') as HTMLElement;
-    const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
-    const cardX: number = firstCell.offsetLeft;
-    const cardY: number = firstCell.offsetTop;
-    const cardW: number = firstCell.offsetWidth;
-    const cardH: number = firstCell.offsetHeight;
-    for (const card of cards) {
-      card.style.top = `${cardY}px`;
-      card.style.left = `${cardX}px`;
-      card.style.width = `${cardW}px`;
-    }
+    const showCards = () => {
+      const firstCell = document.querySelector('.cell') as HTMLElement;
+      const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
+      const cardX: number = firstCell.offsetLeft;
+      const cardY: number = firstCell.offsetTop;
+      const cardW: number = firstCell.offsetWidth;
+      const cardH: number = firstCell.offsetHeight;
+      for (const card of cards) {
+        card.style.top = `${cardY}px`;
+        card.style.left = `${cardX}px`;
+        card.style.width = `${cardW}px`;
+      }
+    };
+    showCards();
 
     if (this.history.length > 0) {
       this.cellsTrack = this.history[this.history.length - 1].track;
@@ -245,6 +248,12 @@ export default class Home extends Vue {
         this.cardsPositioningTableau(1);
       }, this.waitingTime * 1000);
     }
+
+    // 讓卡片隨視窗調整更動大小與位置
+    window.onresize = () => {
+      showCards();
+      this.cardsPositioningTableau(0);
+    };
   }
 
   // methods
@@ -434,7 +443,7 @@ export default class Home extends Vue {
       const cardPos: PosConfig = { x: card.offsetLeft, y: card.offsetTop };
       const tableau: number[] = JSON.parse(card.getAttribute('data-tableau') as string);
       const tableauAmount: number = JSON.parse(card.getAttribute('data-tableau') as string).length;
-      const criterion: number = 20;
+      const criterion: number = 50;
       const time: number = .2;
       let isConnect: boolean = false;
 

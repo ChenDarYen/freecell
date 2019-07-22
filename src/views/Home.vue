@@ -505,7 +505,7 @@ export default class Home extends Vue {
       }
 
       // check cell
-      if (!isConnect) {
+      if (!isConnect && tableauAmount <= this.emptyCellAmount + 1) {
         for (const [key, cellData] of Object.entries(this.cellsTrack)) {
           const cell = document.querySelector(`[data-name="${key}"]`) as HTMLElement;
           const cellLeng: number = cellData.length;

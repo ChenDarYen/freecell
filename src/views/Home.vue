@@ -199,7 +199,7 @@ export default class Home extends Vue {
   private emptyCellAmount: number = 0;
   private emptyCascadeAmount: number = 0;
   private travelerHomeIndex: string = '';
-  private zIndex: number = 7;
+  private zIndex: number = 53; // 確保比所有牌的 zIndex 都大
   private initializeTime: number = 1;
   private waitingTime: number = .5;
   private canAction: boolean = false;
@@ -262,7 +262,7 @@ export default class Home extends Vue {
     this.isWin = false;
     this.showModal = false;
     this.history = [];
-    this.zIndex = 7;
+    this.zIndex = 53;
     for (let i = 1 ; i <= 16; i ++) {
       const key = `${i}-${this.determineCell(i)}`;
       this.cellsTrack[key] = [];
@@ -352,6 +352,7 @@ export default class Home extends Vue {
 
       const moveTo = (cardIndex: number, ratio: number = 0, multiple: number = 0) => {
         const realCard: HTMLElement = realCards[cardIndex];
+
         realCard.style.transition = `all ${time}s`;
         realCard.style.left = `${cellPosX}px`;
         realCard.style.top = `${cellPosY + multiple * cellHeight * this.cardDistRatio}px`;
@@ -370,8 +371,9 @@ export default class Home extends Vue {
             moveTo(cardIndex);
           }  
         } else {
-          for (const [index, cardIndex] of cellCards.entries()) {
-            moveTo(cardIndex, this.cardDistRatio, index);
+          for (const [index, cardIndex] of [...cellCards].reverse().entries()) {
+            const multiple: number = cellCards.length - index - 1;
+            moveTo(cardIndex, this.cardDistRatio, multiple);
           }  
         }  
       }
@@ -425,10 +427,10 @@ export default class Home extends Vue {
     if (isLegal) {
       const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
       const tableau: number[] = JSON.parse(e.currentTarget.getAttribute('data-tableau') as string);
+      const maxZindex: number = this.zIndex + tableau.length;
 
-      for (const cardIndex of tableau.reverse()) {
-        cards[cardIndex].style.zIndex = `${this.zIndex}`;
-        this.zIndex = this.zIndex + 1;
+      for (const [index, cardIndex] of tableau.entries()) {
+        cards[cardIndex].style.zIndex = `${maxZindex - index}`;
       }
     }
   }
@@ -459,7 +461,6 @@ export default class Home extends Vue {
       const back = () => {
         card.style.zIndex = `${this.zIndex}`;
         this.cardsPositioningTableau(time, cardCellKey);
-        this.zIndex = this.zIndex + 1;
       };
       const track = (destinationCellKey: string) => {
         const cardCellLeng = this.cellsTrack[cardCellKey].length;

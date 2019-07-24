@@ -488,7 +488,6 @@ export default class Home extends Vue {
         }
       };
       const travel = (travelTime: number, destinationCellKey: string, ratio: number = 0) => {
-        
         track(destinationCellKey);
         checkEmptyCell(destinationCellKey);
         this.travelerHomeIndex = cardCellKey;
@@ -516,7 +515,7 @@ export default class Home extends Vue {
       }
 
       // check cell
-      if (!isConnect && tableauAmount <= this.emptyCellAmount + 1) {
+      if (!isConnect) {
         for (const [key, cellData] of Object.entries(this.cellsTrack)) {
           const cell = document.querySelector(`[data-name="${key}"]`) as HTMLElement;
           const cellLeng: number = cellData.length;
@@ -534,7 +533,7 @@ export default class Home extends Vue {
               break;
             }
           } else { // cascades
-            if (cellLeng === 0 && isClose(cell)) {
+            if (cellLeng === 0 && tableauAmount <= this.emptyCellAmount + 1 && isClose(cell)) {
               travel(time, key);
               break;
             }
@@ -612,13 +611,13 @@ export default class Home extends Vue {
   public undo () {
     if (this.history.length > 1) { // 為保留最初的資料設置條件 > 1
       const chapter: ChapterConfig = this.history[this.history.length - 2];
-
       this.cellsTrack = JSON.parse(JSON.stringify(chapter.track));
       this.emptyCellAmount = chapter.emptyCellAmount;
       this.emptyCascadeAmount = chapter.emptyCascadeAmount;
       this.writeDataCell(this.history[this.history.length - 1].from); // 需在刪除資料前執行
       this.history.pop();
       this.cardsPositioningTableau(.5);
+      localStorage.setItem('history', JSON.stringify(this.history));
     }
   }
   public back () {
@@ -628,6 +627,8 @@ export default class Home extends Vue {
   public hideModal () {
     this.showModal = false;
     if (this.action === 'back') {
+      this.emptyCellAmount = this.history[this.history.length - 1].emptyCellAmount;
+      this.emptyCascadeAmount = this.history[this.history.length - 1].emptyCascadeAmount;
       this.cardsPositioningTableau(1);
       for (let i = 9; i <= 16; i ++) {
         const key: string = `${i}-cascade`;
@@ -732,6 +733,20 @@ export default class Home extends Vue {
     left: 50%;
     transform: translate(-50%, -50%);
   }
+}
+.foundation{
+  position: relative;
+  &::after {
+    display: block;
+    content: "A";
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 5vw;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }  
 }
 .card {
   width: 0;

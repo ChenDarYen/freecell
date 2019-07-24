@@ -47,7 +47,7 @@
       :rank="card.point" :suit="card.suit"
       data-legal data-tableau
       :data-index="index" :data-sibling="JSON.stringify(card.siblings)" :data-cell="card.cell"
-      @mousedown="changeZIndex" @mouseup="mouseup"
+      @mousedown="mousedown" @mouseup="mouseup"
       v-drag
       ></card-t>
 
@@ -195,6 +195,7 @@ export default class Home extends Vue {
   private deck: Card[] = [];
   private history: ChapterConfig[] = [];
   private cellsTrack: TrackConfig = {};
+  private currentCardPos: PosConfig = {x: 0, y: 0};
   private cardDistRatio: number = .2;
   private emptyCellAmount: number = 0;
   private emptyCascadeAmount: number = 0;
@@ -434,17 +435,17 @@ export default class Home extends Vue {
       }
     }
   }
-  public connect (e) {
+  public connect (e, isRemote: boolean = false) {
     const card: HTMLElement = e.currentTarget;
     const isLegal: boolean = card.getAttribute('data-legal') === 'true';
-
+    
     if (isLegal) {
       const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
       const cardIdx: number = Number(card.getAttribute('data-index'));
       const cardCellKey = card.getAttribute('data-cell') as string;
       const cardPos: PosConfig = { x: card.offsetLeft, y: card.offsetTop };
       const tableau: number[] = JSON.parse(card.getAttribute('data-tableau') as string);
-      const tableauAmount: number = JSON.parse(card.getAttribute('data-tableau') as string).length;
+      const tableauAmount: number = tableau.length;
       const criterion: number = 50;
       const time: number = .2;
       let isConnect: boolean = false;
@@ -452,7 +453,8 @@ export default class Home extends Vue {
       const isClose = (destination: HTMLElement): boolean => {
         const destinationPos: PosConfig = { x: destination.offsetLeft, y: destination.offsetTop };
 
-        if (Math.abs(cardPos.x - destinationPos.x) < criterion && Math.abs(cardPos.y - destinationPos.y) < criterion) {
+        if (isRemote
+        || (Math.abs(cardPos.x - destinationPos.x) < criterion && Math.abs(cardPos.y - destinationPos.y) < criterion)) {
           return true;
         } else {
           return false;
@@ -498,56 +500,67 @@ export default class Home extends Vue {
         isConnect = true;
       };
 
-      // check siblings
-      const siblings: number[] = JSON.parse(card.getAttribute('data-sibling') as string);
-      
-      for (const siblingIdx of siblings) {
-        const sibling = cards[siblingIdx] as HTMLElement;
-        const siblingCard: Card = this.deck[sibling.getAttribute('data-index') as string];
-        const siblingCellIdx = sibling.getAttribute('data-cell') as string;
-        const siblingCell: number[] = this.cellsTrack[siblingCellIdx];
-        const isCover: boolean = siblingCell[siblingCell.length - 1] === siblingCard.index;
+      // 確認的順序是 foundations -> siblings -> cascades -> cells
+      // check foundations
+      for (let i = 0; i < 4; i ++) {
+        const cellKey: string = `${5 + i}-foundation`;
+        const cell = document.querySelector(`[data-name="${cellKey}"]`) as HTMLElement;
+        const cellData: number[] = this.cellsTrack[cellKey];
+        const coverCardIdx: number = cellData[cellData.length - 1];
 
-        if (isCover && isClose(sibling)) {
-          travel(time, siblingCellIdx, this.cardDistRatio);
+        if ((cardIdx < 5 || cardIdx === coverCardIdx + 4) && isClose(cell)) {
+          travel(time, cellKey);
           break;
         }
       }
 
-      // check cell
       if (!isConnect) {
-        for (const [key, cellData] of Object.entries(this.cellsTrack)) {
-          const cell = document.querySelector(`[data-name="${key}"]`) as HTMLElement;
-          const cellLeng: number = cellData.length;
-          const index: number = parseInt(key, 10);
-          if (index < 5) { // cells
-            if (cellLeng === 0 && tableauAmount === 1 && isClose(cell)) {
-              travel(time, key);
-              break;
-            }
-          } else if (index < 9) { // foundations
-            const CoverCardIdx: number = cellData.length ? cellData[cellData.length - 1] : -10;
+        // check siblings
+        const siblings: number[] = JSON.parse(card.getAttribute('data-sibling') as string);
 
-            if ((cardIdx < 5 || cardIdx === CoverCardIdx + 4) && isClose(cell)) {
-              travel(time, key);
-              break;
-            }
-          } else { // cascades
-            if (cellLeng === 0 && tableauAmount <= this.emptyCellAmount + 1 && isClose(cell)) {
-              travel(time, key);
-              break;
-            }
+        for (const siblingIdx of siblings) {
+          const sibling = cards[siblingIdx] as HTMLElement;
+          const siblingCard: Card = this.deck[sibling.getAttribute('data-index') as string];
+          const siblingCellIdx = sibling.getAttribute('data-cell') as string;
+          const siblingCell: number[] = this.cellsTrack[siblingCellIdx];
+          const isCover: boolean = siblingCell[siblingCell.length - 1] === siblingCard.index;
+
+          if (isCover && isClose(sibling)) {
+            travel(time, siblingCellIdx, this.cardDistRatio);
+            break;
           }
         }
 
-        // if card cannot connect, back!
         if (!isConnect) {
-          back();
-        } else {
-          // check thie status of the game
-          this.checkStatus();
-        }
+          for (const [key, cellData] of Object.entries(this.cellsTrack).reverse()) { // reverse 讓 cascades 先被檢查
+            const cell = document.querySelector(`[data-name="${key}"]`) as HTMLElement;
+            const cellLeng: number = cellData.length;
+            const index: number = parseInt(key, 10);
+
+            if (index < 5) { // check cells
+              if (cellLeng === 0 && tableauAmount === 1 && isClose(cell)) {
+                travel(time, key);
+                break;
+              }
+            } else if (index > 8) { // check cascades
+              if (cellLeng === 0 && tableauAmount <= this.emptyCellAmount + 1 && isClose(cell)) {
+                travel(time, key);
+                break;
+              }
+            }
+          }
+
+          // if card cannot connect, back!
+          if (!isConnect) {
+            back();
+          } else {
+            // check thie status of the game
+            this.checkStatus();
+          }
+        }  
       }
+
+      
     }
   }
   public checkStatus () {
@@ -656,8 +669,26 @@ export default class Home extends Vue {
     }
     (document.querySelector('.modal') as HTMLElement).style.zIndex = `${this.zIndex}`;
   }
+  public mousedown (e) {
+    const currentCard: HTMLElement = e.currentTarget;
+
+    this.currentCardPos = {
+      x: currentCard.clientLeft,
+      y: currentCard.clientTop,
+    };
+    this.changeZIndex(e);
+  }
   public mouseup (e) {
-    this.connect(e);
+    const currentCard = e.currentTarget;
+
+    if (currentCard.clientLeft === this.currentCardPos.x && currentCard.clientTop === this.currentCardPos.y) {
+      console.log(0);
+      this.connect(e, true);
+    } else {
+      console.log(1);
+      this.connect(e);
+    }
+    
     this.checkStatus();
   }
 }

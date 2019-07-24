@@ -673,20 +673,20 @@ export default class Home extends Vue {
     const currentCard: HTMLElement = e.currentTarget;
 
     this.currentCardPos = {
-      x: currentCard.clientLeft,
-      y: currentCard.clientTop,
+      x: currentCard.offsetLeft,
+      y: currentCard.offsetTop,
     };
     this.changeZIndex(e);
   }
   public mouseup (e) {
     const currentCard = e.currentTarget;
+    console.log(currentCard.offsetLeft, this.currentCardPos.x);
 
-    if (currentCard.clientLeft === this.currentCardPos.x && currentCard.clientTop === this.currentCardPos.y) {
-      console.log(0);
+    if (currentCard.offsetLeft === this.currentCardPos.x && currentCard.offsetTop === this.currentCardPos.y) {
       this.connect(e, true);
     } else {
-      console.log(1);
-      this.connect(e);
+      console.log(false);
+      this.connect(e, false);
     }
     
     this.checkStatus();

@@ -14,6 +14,10 @@
           <img src="../assets/images/undo.svg" width="60px"
           @click="undo">
         </li>
+        <li>
+          <img src="../assets/images/hint.svg" width="50px"
+          @click="hint">
+        </li>
       </ul>
     </nav>
 
@@ -45,8 +49,9 @@
       <card-t class="card" opacity="1" borderradius="3%"
       v-for="(card, index) in deck" :key="card.point + card.suit"
       :rank="card.point" :suit="card.suit"
-      data-legal data-tableau
-      :data-index="index" :data-sibling="JSON.stringify(card.siblings)" :data-cell="card.cell"
+      :data-tableau="JSON.stringify(card.tableau)"
+      :data-legal="card.legal" :data-index="index"
+      :data-sibling="JSON.stringify(card.siblings)" :data-cell="card.cell"
       @mousedown="mousedown" @mouseup="mouseup"
       v-drag
       ></card-t>
@@ -74,7 +79,9 @@ class Card {
   public src: string;
   public index: number;
   public siblings: number[] = [];
+  public tableau: number[] = [this.index];
   public cell: string = '';
+  public legal: boolean = false;
 
   constructor (point: number, suit: string, i: number) {
     this.point = point;
@@ -109,6 +116,14 @@ interface ChapterConfig {
   from: string;
   emptyCellAmount: number;
   emptyCascadeAmount: number;
+}
+interface HintConfig {
+  cardIndex: number;
+  cellKey: string;
+}
+interface HintsConfig {
+  index: number;
+  hints: HintConfig[];
 }
 
 @Component({
@@ -194,6 +209,7 @@ export default class Home extends Vue {
   private readonly suits: string[] = ['spades', 'hearts', 'diamonds', 'clubs'];
   private deck: Card[] = [];
   private history: ChapterConfig[] = [];
+  private hints: HintsConfig = { index: 0, hints: []};
   private cellsTrack: TrackConfig = {};
   private currentCardPos: PosConfig = {x: 0, y: 0};
   private cardDistRatio: number = .2;
@@ -264,6 +280,7 @@ export default class Home extends Vue {
     this.showModal = false;
     this.history = [];
     this.zIndex = 53;
+    this.resetHints();
     for (let i = 1 ; i <= 16; i ++) {
       const key = `${i}-${this.determineCell(i)}`;
       this.cellsTrack[key] = [];
@@ -392,17 +409,21 @@ export default class Home extends Vue {
         const cardPoint: number = card.point;
         const cardIdx: number = cell[i];
         const maxMovingAmount: number = (this.emptyCellAmount + 1) * (this.emptyCascadeAmount + 1);
+        let stillLegal: boolean = true;
 
         if ((i === cell.length - 1 || (cardColor !== color && cardPoint === point + 1))
-        && cell.length - i <= maxMovingAmount) {
+        && cell.length - i <= maxMovingAmount && stillLegal) {
           tableau.push(cardIdx);
-          color = cardColor;
-          point = cardPoint;
-          cards[cardIdx].setAttribute('data-legal', 'true');
-          cards[cardIdx].setAttribute('data-tableau', JSON.stringify(tableau));
+          this.$set(this.deck[cardIdx], 'legal', true);
+          this.deck[cardIdx].legal = true;
+          this.$set(this.deck[cardIdx], 'tableau', [...tableau]);
         } else {
-          cards[cardIdx].setAttribute('data-legal', 'false');
+          this.$set(this.deck[cardIdx], 'legal', false);
+          stillLegal = false;
         }
+
+        color = cardColor;
+        point = cardPoint;
       }
     };
 
@@ -496,6 +517,7 @@ export default class Home extends Vue {
         this.cardsPositioningTableau(travelTime);
         this.writeDataCell(destinationCellKey);
         this.recordHistory();
+        this.resetHints();
 
         isConnect = true;
       };
@@ -508,7 +530,8 @@ export default class Home extends Vue {
         const cellData: number[] = this.cellsTrack[cellKey];
         const coverCardIdx: number = cellData[cellData.length - 1];
 
-        if ((cardIdx < 5 || cardIdx === coverCardIdx + 4) && isClose(cell)) {
+        if (((cardIdx < 5 && cellData.length === 0) || cardIdx === coverCardIdx + 4 )
+        && tableauAmount === 1 && isClose(cell)) {
           travel(time, cellKey);
           break;
         }
@@ -631,6 +654,7 @@ export default class Home extends Vue {
       this.history.pop();
       this.cardsPositioningTableau(.5);
       localStorage.setItem('history', JSON.stringify(this.history));
+      this.resetHints();
     }
   }
   public back () {
@@ -680,16 +704,107 @@ export default class Home extends Vue {
   }
   public mouseup (e) {
     const currentCard = e.currentTarget;
-    console.log(currentCard.offsetLeft, this.currentCardPos.x);
 
     if (currentCard.offsetLeft === this.currentCardPos.x && currentCard.offsetTop === this.currentCardPos.y) {
       this.connect(e, true);
     } else {
-      console.log(false);
       this.connect(e, false);
     }
     
     this.checkStatus();
+  }
+  public findHints () {
+    for (const [cardIndex, card] of this.deck.entries()) {
+      if (card.legal) {
+        const siblings: number[] = card.siblings;
+        const tableau: number[] = card.tableau;
+        const cardCellIdx: number = parseInt(card.cell, 10);
+
+        for (let i = 0; i < 4; i ++) { // check foundations
+          const cellKey: string = `${5 + i}-foundation`;
+          const cell: number[] = this.cellsTrack[cellKey];
+          
+          if (((cardIndex < 4 && cell.length === 0)
+            || (cardIndex === cell[cell.length - 1] + 4 && tableau.length === 1))
+          && (cardCellIdx < 5 || cardCellIdx > 8)) {
+            this.hints.hints.push({
+              cardIndex,
+              cellKey,
+            });
+            break;
+          }
+        }
+        for (const siblingIdx of siblings) { // check siblings
+          const siblingCell: number[] = this.cellsTrack[this.deck[siblingIdx].cell];
+          if (siblingCell.indexOf(siblingIdx) === siblingCell.length - 1) {
+            this.hints.hints.push({
+              cardIndex,
+              cellKey: this.deck[siblingIdx].cell,
+            });
+          }
+        }
+        for (const [cellKey, cell] of Object.entries(this.cellsTrack).reverse()) {
+          const cellIdx: number = parseInt(cellKey, 10);
+
+          if (cellIdx > 8) { // check cacades
+            if (cell.length === 0 && tableau.length <= this.emptyCellAmount + 1) {
+              this.hints.hints.push({
+                cardIndex,
+                cellKey,
+              });
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  public showHint () {
+    if (this.hints.hints.length > 0) {
+      const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
+      const hint: HintConfig = this.hints.hints[this.hints.index % this.hints.hints.length];
+      const { cardIndex, cellKey }: { cardIndex: number, cellKey: string } = hint;
+      const cell: number[] = this.cellsTrack[cellKey];
+      const transitionTime: number = .3;
+      const durationTime: number = .5;
+
+      const shining = (target: HTMLElement) => {
+        target.style.transition = `box-shadow ${transitionTime}s`;
+        target.style.boxShadow = '0 0 5px 5px gold';
+        setTimeout(() => {
+          target.style.boxShadow = '';
+          setTimeout(() => {
+            target.style.transition = '';
+          }, transitionTime * 1000);
+        }, durationTime * 1000);
+      };
+
+      for (const index of this.deck[cardIndex].tableau) {
+        shining(cards[index].firstChild as HTMLElement);
+      }
+      if (cell.length > 0) {
+        shining(cards[cell[cell.length - 1]].firstChild as HTMLElement);
+      } else {
+        shining(document.querySelector(`[data-name="${cellKey}"]`) as HTMLElement);
+      }
+
+      this.hints.index = this.hints.index + 1;  
+    }
+  }
+  public hint () {
+    if (this.hints.hints.length === 0) {
+      this.findHints();
+      this.showHint();
+    } else {
+      this.showHint();
+    }
+
+  }
+  public resetHints () {
+    this.hints = {
+      index: 0,
+      hints: [],
+    };
   }
 }
 </script>
@@ -713,6 +828,9 @@ export default class Home extends Vue {
   text-align: center;
   img {
     margin-bottom: 50px;
+  }
+  li:hover {
+    opacity: .6;
   }
 }
 .board {
@@ -805,5 +923,8 @@ export default class Home extends Vue {
 }
 .visable {
   opacity: 1;
+}
+.shining {
+  box-shadow: 0 0 5px 5px gold;
 }
 </style>

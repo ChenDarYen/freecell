@@ -1,22 +1,22 @@
 <template>
   <div class="main">
-    <nav class="sidebar">
+    <nav class="sidenav">
       <ul>
-        <li>
-          <img src="../assets/images/new.svg" width="60px"
-          @click="dsiplayModal('newGame')">
+        <li @click="displayModal('newGame')">
+          <img src="../assets/images/new.svg">
+          <span>new</span>
         </li>
-        <li>
-          <img src="../assets/images/restart.svg" width="88px"
-          @click="dsiplayModal('restart')">
+        <li @click="displayModal('restart')">
+          <img src="../assets/images/restart.svg">
+          <span>restart</span>
         </li>
-        <li>
-          <img src="../assets/images/undo.svg" width="60px"
-          @click="undo">
+        <li @click="undo">
+          <img src="../assets/images/undo.svg">
+          <span>undo</span>
         </li>
-        <li>
-          <img src="../assets/images/hint.svg" width="50px"
-          @click="hint">
+        <li @click="hint">
+          <img src="../assets/images/hint.svg">
+          <span>hint</span>
         </li>
       </ul>
     </nav>
@@ -56,8 +56,20 @@
       v-drag
       ></card-t>
 
-      <div class="logo">
-        <img src="../assets/images/logo.svg">
+      <div class="frontbar">
+        <div class="logo">
+          <img src="../assets/images/logo.svg">
+        </div>
+        <div class="record">
+          <div class="time">
+            <img src="../assets/images/time.svg">
+            <span>{{ timer.display }}</span>
+          </div>
+          <div class="moves">
+            <span class="move-count">{{ Math.max(history.length - 1, 0) }}</span>
+            <span>Moves</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -124,6 +136,15 @@ interface HintConfig {
 interface HintsConfig {
   index: number;
   hints: HintConfig[];
+}
+interface TimerConfig {
+  display: string;
+  count: number;
+  timer: number;
+}
+interface StorageConfig {
+  timer: TimerConfig;
+  history: ChapterConfig[];
 }
 
 @Component({
@@ -219,12 +240,19 @@ export default class Home extends Vue {
   private zIndex: number = 53; // 確保比所有牌的 zIndex 都大
   private initializeTime: number = 1;
   private waitingTime: number = .5;
+  private distributeTime: number = 1;
   private canAction: boolean = false;
   private showModal: boolean = false;
   private isWin: boolean = false;
+  private isReturn: boolean = false;
   private action: string = '';
   private messages: string[] = [];
   private btnMsg: string = '';
+  private timer: TimerConfig = {
+    display: '00:00',
+    count: 0,
+    timer: 0,
+  };
 
   constructor () {
     super();
@@ -236,10 +264,12 @@ export default class Home extends Vue {
 
   // lifecycle
   public created () {
-    this.history = localStorage.getItem('history') ? JSON.parse(localStorage.getItem('history') as string) : [];
+    this.isReturn = localStorage.getItem('history') ? true : false;
     this.createDeck();
   }
   public mounted () {
+    const time: number = 1;
+
     // show cards
     const showCards = () => {
       const firstCell = document.querySelector('.cell') as HTMLElement;
@@ -256,13 +286,15 @@ export default class Home extends Vue {
     };
     showCards();
 
-    if (this.history.length > 0) {
-      this.cellsTrack = this.history[this.history.length - 1].track;
-      this.dsiplayModal('back');
+    if (this.isReturn) {
+      this.displayModal('return');
     } else {
       this.distributeCards();
       setTimeout(() => {
-        this.cardsPositioningTableau(1);
+        this.cardsPositioningTableau(this.distributeTime);
+        setTimeout(() => {
+          this.startTimer();
+        }, this.distributeTime);
       }, this.waitingTime * 1000);
     }
 
@@ -281,6 +313,13 @@ export default class Home extends Vue {
     this.history = [];
     this.zIndex = 53;
     this.resetHints();
+    this.stopTimer();
+    this.timer = {
+      display: '00:00',
+      count: 0,
+      timer: 0,
+    };
+
     for (let i = 1 ; i <= 16; i ++) {
       const key = `${i}-${this.determineCell(i)}`;
       this.cellsTrack[key] = [];
@@ -321,16 +360,24 @@ export default class Home extends Vue {
       }
     }
   }
-  public recordHistory () {
-    const chapter = {
-      // 只傳址會導致先前的紀錄被重寫。因為 cellTrack 有兩層， 解構賦值或 Object.asign() 也不行
-      track: JSON.parse(JSON.stringify(this.cellsTrack)),
-      from: this.travelerHomeIndex,
-      emptyCellAmount: this.emptyCellAmount,
-      emptyCascadeAmount: this.emptyCascadeAmount,
+  public recordHistory (push: boolean = true) {
+    const storageData: StorageConfig = {
+      timer: this.timer,
+      history: this.history,
     };
-    this.history.push(chapter);
-    localStorage.setItem('history', JSON.stringify(this.history));
+
+    if (push) {
+      const chapter = {
+        // 只傳址會導致先前的紀錄被重寫。因為 cellTrack 有兩層， 解構賦值或 Object.asign() 也不行
+        track: JSON.parse(JSON.stringify(this.cellsTrack)),
+        from: this.travelerHomeIndex,
+        emptyCellAmount: this.emptyCellAmount,
+        emptyCascadeAmount: this.emptyCascadeAmount,
+      };
+      this.history.push(chapter);  
+    }
+    
+    localStorage.setItem('history', JSON.stringify(storageData));
   }
   public distributeCards () {
     const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
@@ -402,6 +449,7 @@ export default class Home extends Vue {
       let color: string = '';
       let point: number = 0;
       const tableau: number[] = [];
+      let stillLegal: boolean = true;
 
       for (let i = cell.length - 1; i >= 0; i --) {
         const card: Card = this.deck[cell[i]];
@@ -409,7 +457,6 @@ export default class Home extends Vue {
         const cardPoint: number = card.point;
         const cardIdx: number = cell[i];
         const maxMovingAmount: number = (this.emptyCellAmount + 1) * (this.emptyCascadeAmount + 1);
-        let stillLegal: boolean = true;
 
         if ((i === cell.length - 1 || (cardColor !== color && cardPoint === point + 1))
         && cell.length - i <= maxMovingAmount && stillLegal) {
@@ -582,8 +629,6 @@ export default class Home extends Vue {
           }
         }  
       }
-
-      
     }
   }
   public checkStatus () {
@@ -616,6 +661,7 @@ export default class Home extends Vue {
   }
   public newGame (immediate: boolean = false) {
     const time: number = immediate ? 0 : this.initializeTime + this.waitingTime;
+    const positioningTime: number = 1;
 
     if (this.canAction) {
       this.canAction = false;
@@ -623,8 +669,11 @@ export default class Home extends Vue {
       setTimeout(() => {
         this.createDeck();
         this.distributeCards();
-        this.cardsPositioningTableau(1); 
-        this.canAction = true;     
+        this.cardsPositioningTableau(this.distributeTime); 
+        this.canAction = true;
+        setTimeout(() => {
+          this.startTimer();
+        }, this.distributeTime * 1000);
       }, time * 1000);  
     } 
   }
@@ -634,13 +683,18 @@ export default class Home extends Vue {
       this.canAction = false;
       
       const firstTrack: TrackConfig = this.history[0].track;
+      const time: number = 1;
+
       this.initialization();
       setTimeout(() => {
         this.createDeck();
         this.cellsTrack = firstTrack;
-        this.cardsPositioningTableau(1); 
+        this.cardsPositioningTableau(this.distributeTime); 
         this.recordHistory();
-        this.canAction = true;     
+        this.canAction = true;
+        setTimeout(() => {
+          this.startTimer();
+        }, this.distributeTime * 1000);  
       }, (this.initializeTime + this.waitingTime) * 1000);  
     }
   }
@@ -657,26 +711,33 @@ export default class Home extends Vue {
       this.resetHints();
     }
   }
-  public back () {
+  public return () {
     this.canAction = true;
     this.newGame(true);
   }
   public hideModal () {
     this.showModal = false;
-    if (this.action === 'back') {
+    if (this.action === 'return') {
+      const time: number = 1;
+
+      this.history = JSON.parse(localStorage.getItem('history') as string).history;
+      this.timer = JSON.parse(localStorage.getItem('history') as string).timer;
+      this.cellsTrack = this.history[this.history.length - 1].track;
       this.emptyCellAmount = this.history[this.history.length - 1].emptyCellAmount;
       this.emptyCascadeAmount = this.history[this.history.length - 1].emptyCascadeAmount;
-      this.cardsPositioningTableau(1);
-      for (let i = 9; i <= 16; i ++) {
-        const key: string = `${i}-cascade`;
+      this.cardsPositioningTableau(this.distributeTime);
+      for (const key of Object.keys(this.cellsTrack)) {
         this.writeDataCell(key);
       }
+      setTimeout(() => {
+        this.startTimer();
+      }, this.distributeTime * 1000);
     }
   }
   public act () {
     this[this.action]();
   }
-  public dsiplayModal (action: string) {
+  public displayModal (action: string) {
     this.action = action;
     if (action === 'newGame') {
       this.messages = ['Do you want to start a new game?', 'This will quit the current game.'];
@@ -686,7 +747,7 @@ export default class Home extends Vue {
       this.messages = ['Do you want to restart the current game?', 'This will undo all your moves.'];
       this.btnMsg = 'restart the current game';
       this.showModal = true;
-    } else if (action === 'back') {
+    } else if (action === 'return') {
       this.messages = ['You have a game in progress.'];
       this.btnMsg = 'start a new game';
       this.showModal = true;
@@ -715,10 +776,11 @@ export default class Home extends Vue {
   }
   public findHints () {
     for (const [cardIndex, card] of this.deck.entries()) {
-      if (card.legal) {
+      const cardCellIdx: number = parseInt(card.cell, 10);
+
+      if (card.legal && (cardCellIdx < 5 || cardCellIdx > 8)) {
         const siblings: number[] = card.siblings;
         const tableau: number[] = card.tableau;
-        const cardCellIdx: number = parseInt(card.cell, 10);
 
         for (let i = 0; i < 4; i ++) { // check foundations
           const cellKey: string = `${5 + i}-foundation`;
@@ -806,6 +868,20 @@ export default class Home extends Vue {
       hints: [],
     };
   }
+  public startTimer () {
+    this.$set(this.timer, 'timer', setInterval(() => {
+      const count: number = this.timer.count + 1;
+      const sec: string = count % 60 > 9 ? `${count % 60}` : `0${count % 60}`;
+      const min: string = Math.floor(count / 60) > 9 ? `${Math.floor(count / 60)}` : `0${Math.floor(count / 60)}`;
+
+      this.$set(this.timer, 'count', count);
+      this.$set(this.timer, 'display', `${min}:${sec}`);
+      this.recordHistory(false);
+    }, 1000));
+  }
+  public stopTimer () {
+    clearInterval(this.timer.timer);
+  }
 }
 </script>
 
@@ -820,21 +896,33 @@ export default class Home extends Vue {
   display: inline-flex;
   flex-direction: row-reverse;
 }
-.sidebar {
-  width: $sidebarWidth;
+.sidenav {
+  width: $sidenavWidth;
   height: 100%;
   padding-top: $spacing * 2;
   background-color: #001F1D;
   text-align: center;
   img {
-    margin-bottom: 50px;
+    width: 40px;
+    margin-bottom: 10px;
   }
-  li:hover {
-    opacity: .6;
+  li {
+    width: 100%;
+    margin-bottom: 40px;
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 1.125rem;
+    text-transform: capitalize;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    &:hover {
+      opacity: .6;
+    }
   }
 }
 .board {
-  width: calc(100% - #{$sidebarWidth});
+  width: calc(100% - #{$sidenavWidth});
   height: 100%;
   padding: ($logoHeight + $spacing * .5) ($spacing * 2) $spacing;
   display: inline-flex;
@@ -843,15 +931,47 @@ export default class Home extends Vue {
   align-content: flex-start;
   position: relative;
 }
-.logo {
+.frontbar {
   height: $logoHeight;
-  margin-left: $spacing;
+  width: 100%;
   position: absolute;
   top: 0;
   left: 0;
+  display: inline-flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.logo {
+  height: 100%;
+  margin-left: $spacing;
   img {
     height: 100%;
   }
+}
+.record {
+  margin-right: 60px;
+  padding-top: 20px;
+  opacity: .9;
+  display: inline-flex;
+  align-items: center;
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-weight: 900;
+}
+.time {
+  margin-right: 20px;
+  display: inline-flex;
+  align-items: center;
+  img {
+    height: 25px;
+    margin-right: 5px;
+  }
+}
+.move-count {
+  width: 40px;
+  margin-right: 5px;
+  text-align: right;
+  display: inline-block;
 }
 .cellWall {
   width: $cardWidth;
@@ -923,8 +1043,5 @@ export default class Home extends Vue {
 }
 .visable {
   opacity: 1;
-}
-.shining {
-  box-shadow: 0 0 5px 5px gold;
 }
 </style>

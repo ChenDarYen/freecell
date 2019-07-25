@@ -591,12 +591,13 @@ export default class Home extends Vue {
         for (const siblingIdx of siblings) {
           const sibling = cards[siblingIdx] as HTMLElement;
           const siblingCard: Card = this.deck[sibling.getAttribute('data-index') as string];
-          const siblingCellIdx = sibling.getAttribute('data-cell') as string;
-          const siblingCell: number[] = this.cellsTrack[siblingCellIdx];
+          const siblingCellKey = sibling.getAttribute('data-cell') as string;
+          const siblingCell: number[] = this.cellsTrack[siblingCellKey];
+          const siblingCellIdx: number = parseInt(siblingCellKey, 10);
           const isCover: boolean = siblingCell[siblingCell.length - 1] === siblingCard.index;
 
-          if (isCover && isClose(sibling)) {
-            travel(time, siblingCellIdx, this.cardDistRatio);
+          if (isCover && siblingCellIdx > 8 && isClose(sibling)) {
+            travel(time, siblingCellKey, this.cardDistRatio);
             break;
           }
         }
@@ -798,7 +799,9 @@ export default class Home extends Vue {
         }
         for (const siblingIdx of siblings) { // check siblings
           const siblingCell: number[] = this.cellsTrack[this.deck[siblingIdx].cell];
-          if (siblingCell.indexOf(siblingIdx) === siblingCell.length - 1) {
+          const siblingCellIdx: number = parseInt(this.deck[siblingIdx].cell, 10);
+
+          if (siblingCell.indexOf(siblingIdx) === siblingCell.length - 1 && siblingCellIdx > 8) {
             this.hints.hints.push({
               cardIndex,
               cellKey: this.deck[siblingIdx].cell,

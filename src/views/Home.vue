@@ -702,13 +702,17 @@ export default class Home extends Vue {
   public undo () {
     if (this.history.length > 1) { // 為保留最初的資料設置條件 > 1
       const chapter: ChapterConfig = this.history[this.history.length - 2];
+      
       this.cellsTrack = JSON.parse(JSON.stringify(chapter.track));
       this.emptyCellAmount = chapter.emptyCellAmount;
       this.emptyCascadeAmount = chapter.emptyCascadeAmount;
       this.writeDataCell(this.history[this.history.length - 1].from); // 需在刪除資料前執行
       this.history.pop();
       this.cardsPositioningTableau(.5);
-      localStorage.setItem('history', JSON.stringify(this.history));
+      localStorage.setItem('history', JSON.stringify({
+        timer: this.timer,
+        history: this.history,
+      }));
       this.resetHints();
     }
   }

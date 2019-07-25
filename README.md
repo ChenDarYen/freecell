@@ -4,6 +4,10 @@
 ---
 嘗試使用 Vue-cli + TypeScript 撰寫的新接龍小遊戲。
 
+DEMO
+---
+https://chendaryen.github.io/freecell/#/
+
 功能：
 ---
 卡片拖曳：

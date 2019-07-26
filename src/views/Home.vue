@@ -705,9 +705,13 @@ export default class Home extends Vue {
       setTimeout(() => {
         this.createDeck();
         this.cellsTrack = firstTrack;
-        this.cardsPositioningTableau(this.distributeTime); 
+        this.cardsPositioningTableau(this.distributeTime);
         this.recordHistory();
         this.canAction = true;
+        for (let i = 0; i < 8; i ++) {
+          const cellKey: string = `${9 + i}-cascade`;
+          this.writeDataCell(cellKey);
+        }
         setTimeout(() => {
           this.startTimer();
         }, this.distributeTime * 1000);  

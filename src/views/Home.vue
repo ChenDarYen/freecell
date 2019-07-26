@@ -23,7 +23,7 @@
 
     <div class="board"
     :data-action="canAction">
-      <div class="cellWall" v-for="index in 16" :key="index">
+      <div class="cell-wall" v-for="index in 16" :key="index">
         <div :class="determineCell(index)"
         :data-name="`${index}-${determineCell(index)}`">
         </div>
@@ -233,7 +233,7 @@ export default class Home extends Vue {
   private hints: HintsConfig = { index: 0, hints: []};
   private cellsTrack: TrackConfig = {};
   private currentCardPos: PosConfig = {x: 0, y: 0};
-  private cardDistRatio: number = .2;
+  private cardDistRatio: number = .25;
   private emptyCellAmount: number = 0;
   private emptyCascadeAmount: number = 0;
   private travelerHomeIndex: string = '';
@@ -420,7 +420,7 @@ export default class Home extends Vue {
 
         realCard.style.transition = `all ${time}s`;
         realCard.style.left = `${cellPosX}px`;
-        realCard.style.top = `${cellPosY + multiple * cellHeight * this.cardDistRatio}px`;
+        realCard.style.top = `${cellPosY + multiple * cellHeight * ratio}px`;
         realCard.style.zIndex = `${multiple}`;
         setTimeout(() => {
           realCard.style.transition = '';
@@ -436,9 +436,20 @@ export default class Home extends Vue {
             moveTo(cardIndex);
           }  
         } else {
+          const cardHeight: number = (document.querySelector('.card img') as HTMLElement).offsetHeight;
+          const boardHeight: number = (document.querySelector('.board') as HTMLElement).offsetHeight;
+          const cascadeY: number = (document.querySelectorAll('.cell-wall')[8] as HTMLElement).offsetTop;
+          const cellLength: number = cellCards.length;
+          let ratio: number = this.cardDistRatio;
+
+          if (cascadeY + cardHeight * (1 + (cellLength - 1) * this.cardDistRatio) > boardHeight - 30) {
+            ratio = Math.max(.15, ((boardHeight - 30 - cellPosY - cardHeight) / (cellLength - 1)) / cardHeight);
+          }
+          console.log(ratio);
+
           for (const [index, cardIndex] of [...cellCards].reverse().entries()) {
             const multiple: number = cellCards.length - index - 1;
-            moveTo(cardIndex, this.cardDistRatio, multiple);
+            moveTo(cardIndex, ratio, multiple);
           }  
         }  
       }
@@ -578,7 +589,6 @@ export default class Home extends Vue {
         const coverCardIdx: number = cellData[cellData.length - 1];
 
         if (((cardIdx < 4 && cellData.length === 0) || cardIdx === coverCardIdx + 4 )
-        && (cardCellIdx < 4 || cardCellIdx > 8)
         && tableauAmount === 1 && isClose(cell)) {
           travel(time, cellKey);
           break;
@@ -610,7 +620,7 @@ export default class Home extends Vue {
             const index: number = parseInt(key, 10);
 
             if (index < 5) { // check cells
-              if (cellLeng === 0 && tableauAmount === 1 && cardCellIdx > 8 && isClose(cell)) {
+              if (cellLeng === 0 && tableauAmount === 1 && isClose(cell)) {
                 travel(time, key);
                 break;
               }
@@ -981,7 +991,7 @@ export default class Home extends Vue {
   text-align: right;
   display: inline-block;
 }
-.cellWall {
+.cell-wall {
   width: $cardWidth;
   margin-right: calc((100% - 8 * #{$cardWidth}) / 7);
   margin-bottom: 15px;

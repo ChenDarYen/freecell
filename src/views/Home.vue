@@ -186,7 +186,7 @@ interface StorageConfig {
               document.onmousemove = (event) => {
                 let inRange: boolean = true;
 
-                for (const [index] of tableau.entries()) {
+                for (const [index] of tableau.entries()) { // 確認是否所有要移動的牌都在區域內
                   const { x: diffX }: { x: number } = diff[index];
                   const { y: diffY }: { y: number } = diff[index];
                   if (event.clientX - diffX < 0 || event.clientX - diffX + cardW - boardW > 0
@@ -199,7 +199,7 @@ interface StorageConfig {
                 if (inRange) {
                   const mouseX: number = event.clientX;
                   const mouseY: number = event.clientY;
-                  for (const [index, CardIndex] of tableau.entries()) {
+                  for (const [index, CardIndex] of tableau.entries()) { // 移動所有牌
                     const tableauCard: HTMLElement = cards[CardIndex];
                     const { x: diffX }: { x: number } = diff[index];
                     const { y: diffY }: { y: number } = diff[index];
@@ -511,6 +511,7 @@ export default class Home extends Vue {
       const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
       const cardIdx: number = Number(card.getAttribute('data-index'));
       const cardCellKey = card.getAttribute('data-cell') as string;
+      const cardCellIdx: number = parseInt(cardCellKey, 10);
       const cardPos: PosConfig = { x: card.offsetLeft, y: card.offsetTop };
       const tableau: number[] = JSON.parse(card.getAttribute('data-tableau') as string);
       const tableauAmount: number = tableau.length;
@@ -539,7 +540,6 @@ export default class Home extends Vue {
         this.cellsTrack[destinationCellKey] = [...this.cellsTrack[destinationCellKey], ...travelers];
       };
       const checkEmptyCell = (destinationCellKey) => {
-        const cardCellIdx: number = parseInt(cardCellKey, 10);
         const destinationcellIdx: number = parseInt(destinationCellKey, 10);
 
         if (this.cellsTrack[cardCellKey].length === 0) {
@@ -577,7 +577,8 @@ export default class Home extends Vue {
         const cellData: number[] = this.cellsTrack[cellKey];
         const coverCardIdx: number = cellData[cellData.length - 1];
 
-        if (((cardIdx < 5 && cellData.length === 0) || cardIdx === coverCardIdx + 4 )
+        if (((cardIdx < 4 && cellData.length === 0) || cardIdx === coverCardIdx + 4 )
+        && (cardCellIdx < 4 || cardCellIdx > 8)
         && tableauAmount === 1 && isClose(cell)) {
           travel(time, cellKey);
           break;
@@ -609,7 +610,7 @@ export default class Home extends Vue {
             const index: number = parseInt(key, 10);
 
             if (index < 5) { // check cells
-              if (cellLeng === 0 && tableauAmount === 1 && isClose(cell)) {
+              if (cellLeng === 0 && tableauAmount === 1 && cardCellIdx > 8 && isClose(cell)) {
                 travel(time, key);
                 break;
               }

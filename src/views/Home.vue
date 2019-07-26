@@ -49,15 +49,16 @@
         </div>
       </div>
 
-      <card-t class="card" opacity="1" borderradius="3%"
+      <div class="card"
       v-for="(card, index) in deck" :key="card.point + card.suit"
       :rank="card.point" :suit="card.suit"
       :data-tableau="JSON.stringify(card.tableau)"
       :data-legal="card.legal" :data-index="index"
       :data-sibling="JSON.stringify(card.siblings)" :data-cell="card.cell"
       @mousedown="mousedown" @mouseup="mouseup"
-      v-drag
-      ></card-t>
+      v-drag>
+        <img :src="`${BaseUrl}/images/${card.suit}-${card.point}.svg`">
+      </div>
 
       <div class="frontbar">
         <div class="logo">
@@ -230,6 +231,7 @@ interface StorageConfig {
 
 export default class Home extends Vue {
   // data
+  private BaseUrl: string = process.env.BASE_URL;
   private readonly points: number[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
   private readonly suits: string[] = ['spades', 'hearts', 'diamonds', 'clubs'];
   private deck: Card[] = [];
@@ -1052,6 +1054,9 @@ export default class Home extends Vue {
   width: 0;
   height: 0;
   position: absolute;
+  img {
+    width: 100%;
+  }
 }
 .modal {
   position: absolute;

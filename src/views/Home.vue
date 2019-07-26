@@ -22,8 +22,9 @@
     </nav>
 
     <div class="board"
-    :data-action="canAction">
-      <div class="cell-wall" v-for="index in 16" :key="index">
+    :data-action="canAction" :data-win="isWin">
+      <div class="cell-wall" v-for="index in 16" :key="index"
+      :class="{'transparent': isWin}">
         <div :class="determineCell(index)"
         :data-name="`${index}-${determineCell(index)}`">
         </div>
@@ -32,12 +33,14 @@
       <div class="winning"
       v-show="isWin"
       :class="{ visable: isWin }">
-        <p>Congratulations</p>
+        <h2>Congratulations</h2>
+        <h3>{{ this.history.length - 1 }} MOVES</h3>
+        <h3>{{ this.timer.display }}</h3>
 
         <div class="btn-container">
           <div>
             <button class="btn"
-            @click="newGame">start a new game</button>
+            @click="newGame(false)">start a new game</button>
           </div>
           <div>
             <button class="btn btn-sub"
@@ -158,8 +161,9 @@ interface StorageConfig {
 
           const board = document.querySelector('.board') as HTMLElement;
           const canAction: boolean = board.getAttribute('data-action') === 'true';
+          const isWin: boolean = board.getAttribute('data-win') === 'true';
 
-          if (canAction) {
+          if (canAction && !isWin) {
             const cardIdx = card.getAttribute('data-index');
             const legal: boolean = card.getAttribute('data-legal') === 'true';
             if (legal) {
@@ -445,7 +449,6 @@ export default class Home extends Vue {
           if (cascadeY + cardHeight * (1 + (cellLength - 1) * this.cardDistRatio) > boardHeight - 30) {
             ratio = Math.max(.15, ((boardHeight - 30 - cellPosY - cardHeight) / (cellLength - 1)) / cardHeight);
           }
-          console.log(ratio);
 
           for (const [index, cardIndex] of [...cellCards].reverse().entries()) {
             const multiple: number = cellCards.length - index - 1;
@@ -657,6 +660,7 @@ export default class Home extends Vue {
     }
 
     if (isWin) {
+      clearInterval(this.timer.timer);
       this.isWin = true;
 
       this.$nextTick(() => { // 確保 winning 的長寬已被設置
@@ -711,7 +715,7 @@ export default class Home extends Vue {
     }
   }
   public undo () {
-    if (this.history.length > 1) { // 為保留最初的資料設置條件 > 1
+    if (this.history.length > 1 && !this.isWin) { // 為保留最初的資料設置條件 > 1
       const chapter: ChapterConfig = this.history[this.history.length - 2];
       
       this.cellsTrack = JSON.parse(JSON.stringify(chapter.track));
@@ -754,21 +758,23 @@ export default class Home extends Vue {
     this[this.action]();
   }
   public displayModal (action: string) {
-    this.action = action;
-    if (action === 'newGame') {
-      this.messages = ['Do you want to start a new game?', 'This will quit the current game.'];
-      this.btnMsg = 'start a new game';
-      this.showModal = true;
-    } else if (action === 'restart') {
-      this.messages = ['Do you want to restart the current game?', 'This will undo all your moves.'];
-      this.btnMsg = 'restart the current game';
-      this.showModal = true;
-    } else if (action === 'return') {
-      this.messages = ['You have a game in progress.'];
-      this.btnMsg = 'start a new game';
-      this.showModal = true;
+    if (!this.isWin) {
+      this.action = action;
+      if (action === 'newGame') {
+        this.messages = ['Do you want to start a new game?', 'This will quit the current game.'];
+        this.btnMsg = 'start a new game';
+        this.showModal = true;
+      } else if (action === 'restart') {
+        this.messages = ['Do you want to restart the current game?', 'This will undo all your moves.'];
+        this.btnMsg = 'restart the current game';
+        this.showModal = true;
+      } else if (action === 'return') {
+        this.messages = ['You have a game in progress.'];
+        this.btnMsg = 'start a new game';
+        this.showModal = true;
+      }
+      (document.querySelector('.modal') as HTMLElement).style.zIndex = `${this.zIndex}`;  
     }
-    (document.querySelector('.modal') as HTMLElement).style.zIndex = `${this.zIndex}`;
   }
   public mousedown (e) {
     const currentCard: HTMLElement = e.currentTarget;
@@ -780,15 +786,17 @@ export default class Home extends Vue {
     this.changeZIndex(e);
   }
   public mouseup (e) {
-    const currentCard = e.currentTarget;
+    if (!this.isWin) {
+      const currentCard = e.currentTarget;
 
-    if (currentCard.offsetLeft === this.currentCardPos.x && currentCard.offsetTop === this.currentCardPos.y) {
-      this.connect(e, true);
-    } else {
-      this.connect(e, false);
+      if (currentCard.offsetLeft === this.currentCardPos.x && currentCard.offsetTop === this.currentCardPos.y) {
+        this.connect(e, true);
+      } else {
+        this.connect(e, false);
+      }
+      
+      this.checkStatus();
     }
-    
-    this.checkStatus();
   }
   public findHints () {
     for (const [cardIndex, card] of this.deck.entries()) {
@@ -872,7 +880,7 @@ export default class Home extends Vue {
     }
   }
   public hint () {
-    if (this.hints.hints.length === 0) {
+    if (this.hints.hints.length === 0 && !this.isWin) {
       this.findHints();
       this.showHint();
     } else {
@@ -996,6 +1004,7 @@ export default class Home extends Vue {
   margin-right: calc((100% - 8 * #{$cardWidth}) / 7);
   margin-bottom: 15px;
   opacity: .5;
+  transition: opacity 1s;
   &:nth-child(8n) {
     margin-right: 0;
   }
@@ -1050,16 +1059,25 @@ export default class Home extends Vue {
   text-align: center;
   position: absolute;
   transition: all 1s;
-  p {
+  font-weight: 900;
+  color: #ffffff;
+  text-transform: uppercase;
+  h2 {
     font-size: 2rem;
-    color: #ffffff;
-    text-transform: capitalize;
+    margin-bottom: 20px;
+  }
+  h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
   }
   .btn-container {
-    margin-top: 60px;
+    margin-top: 30px;
   }
 }
 .visable {
   opacity: 1;
+}
+.transparent {
+  opacity: 0;
 }
 </style>

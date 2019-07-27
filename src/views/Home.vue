@@ -312,7 +312,7 @@ export default class Home extends Vue {
   }
 
   // methods
-  public initialization (immediate: boolean = false) {
+  public initialization (immediate: boolean = false): void {
 
     this.isWin = false;
     this.showModal = false;
@@ -347,7 +347,7 @@ export default class Home extends Vue {
       }  
     }
   }
-  public determineCell (index) {
+  public determineCell (index: number): string {
     if (index <= 4) {
       return 'cell';
     } else if (index <= 8) {
@@ -356,7 +356,7 @@ export default class Home extends Vue {
       return 'cascade';
     }
   }
-  public createDeck () {
+  public createDeck (): void {
     this.deck = [];
     let i = 0;
     for (const point of this.points) {
@@ -366,7 +366,7 @@ export default class Home extends Vue {
       }
     }
   }
-  public recordHistory (push: boolean = true) {
+  public recordHistory (push: boolean = true): void {
     const storageData: StorageConfig = {
       timer: this.timer,
       history: this.history,
@@ -385,7 +385,7 @@ export default class Home extends Vue {
     
     localStorage.setItem('history', JSON.stringify(storageData));
   }
-  public distributeCards () {
+  public distributeCards (): void {
     const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
     const deck = [...this.deck];
 
@@ -401,17 +401,17 @@ export default class Home extends Vue {
     this.emptyCascadeAmount = 0;
     this.recordHistory();
   }
-  public writeDataCell (key) {
+  public writeDataCell (key: string): void {
     const cell: number[] = this.cellsTrack[key];
 
     for (const cardIndex of cell) {
       this.$set(this.deck[cardIndex], 'cell', key);
     }
   }
-  public cardsPositioningTableau (time, ...keys: string[]): void {
+  public cardsPositioningTableau (time: number, ...keys: string[]): void {
     this.canAction = false;
 
-    const positioning = (key) => {
+    const positioning = (key: string): void => {
       const selector: string = `[data-name="${key}"]`;
       const cell = document.querySelector(selector) as HTMLElement;
       const cellIndex: number = parseInt(key, 10);
@@ -421,7 +421,7 @@ export default class Home extends Vue {
       const cellCards: number[] = this.cellsTrack[key];
       const realCards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
 
-      const moveTo = (cardIndex: number, ratio: number = 0, multiple: number = 0) => {
+      const moveTo = (cardIndex: number, ratio: number = 0, multiple: number = 0): void => {
         const realCard: HTMLElement = realCards[cardIndex];
 
         realCard.style.transition = `all ${time}s`;
@@ -459,7 +459,7 @@ export default class Home extends Vue {
         }  
       }
     };
-    const checkTableau = (key) => {
+    const checkTableau = (key: string): void => {
       const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
       const cell: number[] = this.cellsTrack[key];
       let color: string = '';
@@ -506,7 +506,7 @@ export default class Home extends Vue {
       this.canAction = true;
     }, time * 1000);
   }
-  public changeZIndex (e) {
+  public changeZIndex (e): void {
     const isLegal: boolean = e.currentTarget.getAttribute('data-legal') === 'true';
 
     if (isLegal) {
@@ -519,7 +519,7 @@ export default class Home extends Vue {
       }
     }
   }
-  public connect (e, isRemote: boolean = false) {
+  public connect (e, isRemote: boolean = false): void {
     const card: HTMLElement = e.currentTarget;
     const isLegal: boolean = card.getAttribute('data-legal') === 'true';
     
@@ -545,17 +545,17 @@ export default class Home extends Vue {
           return false;
         }
       };
-      const back = () => {
+      const back = (): void => {
         card.style.zIndex = `${this.zIndex}`;
         this.cardsPositioningTableau(time, cardCellKey);
       };
-      const track = (destinationCellKey: string) => {
+      const track = (destinationCellKey: string): void => {
         const cardCellLeng = this.cellsTrack[cardCellKey].length;
         const travelers: number[] = this.cellsTrack[cardCellKey].splice(cardCellLeng - tableauAmount, tableauAmount);
 
         this.cellsTrack[destinationCellKey] = [...this.cellsTrack[destinationCellKey], ...travelers];
       };
-      const checkEmptyCell = (destinationCellKey) => {
+      const checkEmptyCell = (destinationCellKey: string) => {
         const destinationcellIdx: number = parseInt(destinationCellKey, 10);
 
         if (this.cellsTrack[cardCellKey].length === 0) {
@@ -573,7 +573,7 @@ export default class Home extends Vue {
           }
         }
       };
-      const travel = (travelTime: number, destinationCellKey: string, ratio: number = 0) => {
+      const travel = (travelTime: number, destinationCellKey: string, ratio: number = 0): void => {
         track(destinationCellKey);
         checkEmptyCell(destinationCellKey);
         this.travelerHomeIndex = cardCellKey;
@@ -648,7 +648,7 @@ export default class Home extends Vue {
       }
     }
   }
-  public checkStatus () {
+  public checkStatus (): void {
     let isWin: boolean = true;
 
     for (let i = 0; i < 4; i ++) { // 檢查四張 k 是否都在 foundation 裡
@@ -677,7 +677,7 @@ export default class Home extends Vue {
       });
     }
   }
-  public newGame (immediate: boolean = false) {
+  public newGame (immediate: boolean = false): void {
     const time: number = immediate ? 0 : this.initializeTime + this.waitingTime;
     const positioningTime: number = 1;
 
@@ -695,7 +695,7 @@ export default class Home extends Vue {
       }, time * 1000);  
     } 
   }
-  public restart () {
+  public restart (): void {
 
     if (this.canAction) {
       this.canAction = false;
@@ -720,7 +720,7 @@ export default class Home extends Vue {
       }, (this.initializeTime + this.waitingTime) * 1000);  
     }
   }
-  public undo () {
+  public undo (): void {
     if (this.history.length > 1 && !this.isWin) { // 為保留最初的資料設置條件 > 1
       const chapter: ChapterConfig = this.history[this.history.length - 2];
       
@@ -737,11 +737,11 @@ export default class Home extends Vue {
       this.resetHints();
     }
   }
-  public return () {
+  public return (): void {
     this.canAction = true;
     this.newGame(true);
   }
-  public hideModal () {
+  public hideModal (): void {
     this.showModal = false;
     if (this.action === 'return') {
       const time: number = 1;
@@ -760,10 +760,10 @@ export default class Home extends Vue {
       }, this.distributeTime * 1000);
     }
   }
-  public act () {
+  public act (): void {
     this[this.action]();
   }
-  public displayModal (action: string) {
+  public displayModal (action: string): void {
     if (!this.isWin) {
       this.action = action;
       if (action === 'newGame') {
@@ -782,7 +782,7 @@ export default class Home extends Vue {
       (document.querySelector('.modal') as HTMLElement).style.zIndex = `${this.zIndex}`;  
     }
   }
-  public mousedown (e) {
+  public mousedown (e): void {
     const currentCard: HTMLElement = e.currentTarget;
 
     this.currentCardPos = {
@@ -791,7 +791,7 @@ export default class Home extends Vue {
     };
     this.changeZIndex(e);
   }
-  public mouseup (e) {
+  public mouseup (e): void {
     if (!this.isWin) {
       const currentCard = e.currentTarget;
 
@@ -804,7 +804,7 @@ export default class Home extends Vue {
       this.checkStatus();
     }
   }
-  public findHints () {
+  public findHints (): void {
     for (const [cardIndex, card] of this.deck.entries()) {
       const cardCellIdx: number = parseInt(card.cell, 10);
 
@@ -853,7 +853,7 @@ export default class Home extends Vue {
       }
     }
   }
-  public showHint () {
+  public showHint (): void {
     if (this.hints.hints.length > 0) {
       const cards: NodeListOf<HTMLElement> = document.querySelectorAll('.card');
       const hint: HintConfig = this.hints.hints[this.hints.index % this.hints.hints.length];
@@ -862,7 +862,7 @@ export default class Home extends Vue {
       const transitionTime: number = .3;
       const durationTime: number = .5;
 
-      const shining = (target: HTMLElement) => {
+      const shining = (target: HTMLElement): void => {
         target.style.transition = `box-shadow ${transitionTime}s`;
         target.style.boxShadow = '0 0 5px 5px gold';
         setTimeout(() => {
@@ -885,7 +885,7 @@ export default class Home extends Vue {
       this.hints.index = this.hints.index + 1;  
     }
   }
-  public hint () {
+  public hint (): void {
     if (this.hints.hints.length === 0 && !this.isWin) {
       this.findHints();
       this.showHint();
@@ -894,13 +894,13 @@ export default class Home extends Vue {
     }
 
   }
-  public resetHints () {
+  public resetHints (): void {
     this.hints = {
       index: 0,
       hints: [],
     };
   }
-  public startTimer () {
+  public startTimer (): void {
     this.$set(this.timer, 'timer', setInterval(() => {
       const count: number = this.timer.count + 1;
       const sec: string = count % 60 > 9 ? `${count % 60}` : `0${count % 60}`;
@@ -911,7 +911,7 @@ export default class Home extends Vue {
       this.recordHistory(false);
     }, 1000));
   }
-  public stopTimer () {
+  public stopTimer (): void {
     clearInterval(this.timer.timer);
   }
 }

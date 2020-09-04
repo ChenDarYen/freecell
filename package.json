@@ -20,7 +20,7 @@
     "@vue/cli-service": "^3.9.0",
     "gulp": "^4.0.2",
     "gulp-gh-pages": "^0.5.4",
-    "node-sass": "^4.9.0",
+    "node-sass": "^4.13.1",
     "sass-loader": "^7.1.0",
     "typescript": "^3.4.3",
     "vue-template-compiler": "^2.6.10"
